@@ -12,7 +12,9 @@ const BugSchema = new Schema({
   taskId: { type: String },
   taskKey: {type: String},
   summary: {type: String},
-  environment: {type: String}
+  OSVersion: {type: String},
+  browser: {type: String},
+  pageResolution: {type: String}
 });
 
 module.exports = model('Bug', BugSchema)

@@ -8,13 +8,13 @@ const fs = require('fs');
 
 
 class BugService {
-    async createBug(url, xpath, heightRatio, widthRatio, summary, description, environment, fileData) {
+    async createBug(url, xpath, heightRatio, widthRatio, summary, description, OSVersion, browser, pageResolution, fileData) {
         const {domain, path} = await this.getDomainAndPath(url)
         const domainId = await this.getDomainId(domain)
         const pageId = await this.getPageId(path, domainId)
-        const task = await this.createTaskInTracker(summary, description, environment, fileData)
+        const task = await this.createTaskInTracker(summary, description, OSVersion, browser, pageResolution, fileData)
         await this.attachFilesToTask(task.id, "ФР", fileData)
-        const bugNumber = await this.getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, task.id, task.key, summary, environment)
+        const bugNumber = await this.getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, task.id, task.key, summary, OSVersion, browser, pageResolution)
         return bugNumber
         
     }
@@ -68,7 +68,7 @@ class BugService {
         }
     }
 
-    async getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, taskId, taskKey, summary, environment) {
+    async getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, taskId, taskKey, summary, OSVersion, browser, pageResolution) {
         try {
             let bugNumber = 1;
             const maxBug = await BugModel.findOne({ domainId }).sort({ bugNumber: -1 });
@@ -85,7 +85,9 @@ class BugService {
                 taskId,
                 taskKey,
                 summary,
-                environment
+                OSVersion,
+                browser,
+                pageResolution
             });
             await newBug.save()
             const bugs = await BugModel.find({ domainId, pageId }).exec();
@@ -98,7 +100,9 @@ class BugService {
                 bugNumber: bug.bugNumber,
                 taskKey: bug.taskKey, 
                 summary: bug.summary,
-                environment: bug.environment
+                OSVersion: bug.OSVersion,
+                browser: bug.browser,
+                pageResolution: bug.pageResolution
               }));
     
             return filteredBugs;
@@ -109,7 +113,7 @@ class BugService {
             }
     }
 
-    async createTaskInTracker(summary, description, environment) {
+    async createTaskInTracker(summary, description, OSVersion, browser, pageResolution) {
         try {
             const requestBody = {
                 "summary": summary,
@@ -197,11 +201,82 @@ class BugService {
             bugNumber: bug.bugNumber,
             taskKey: bug.taskKey, 
             summary: bug.summary,
-            environment: bug.environment
+            OSVersion: bug.OSVersion,
+            browser: bug.browser,
+            pageResolution: bug.pageResolution
           }));
 
         return filteredBugs;
       }
+
+    async getBug(idBug) {
+      try {    
+        const config = {
+          headers: {
+            'Authorization': 'Bearer y0_AgAAAAATFq7WAAqB_QAAAADs6FC29yntavQmQn2V4OoFOqiVNthFKVs',
+            'X-Org-ID': '5971090'
+          }
+        };
+        
+        const response = await axios.get(`https://api.tracker.yandex.net/v2/issues/${idBug}`, config);
+        
+        const bugData = response.data;
+        
+        return bugData
+      } catch (error) {
+        console.error('Ошибка при отправке запроса:', error);
+        res.status(500).json({ error: 'Произошла ошибка при получении данных' });
+      }
+
+      return bugData;
+    }
+
+    async getAttachments(idBug) {
+      try {    
+        const config = {
+          headers: {
+            'Authorization': 'Bearer y0_AgAAAAATFq7WAAqB_QAAAADs6FC29yntavQmQn2V4OoFOqiVNthFKVs',
+            'X-Org-ID': '5971090'
+          }
+        };
+        
+        const response = await axios.get(`https://api.tracker.yandex.net/v2/issues/${idBug}/attachments`, config);
+        
+        const attachmentsData = response.data;
+        
+        return attachmentsData
+      } catch (error) {
+        console.error('Ошибка при отправке запроса:', error);
+        res.status(500).json({ error: 'Произошла ошибка при получении данных' });
+      }
+
+      return attachmentsData;
+    }
+
+    async getBugListData(body) {
+      try { 
+        // Заголовки запроса
+        const headers = {
+          'Authorization': 'Bearer y0_AgAAAAATFq7WAAqB_QAAAADs6FC29yntavQmQn2V4OoFOqiVNthFKVs',
+          'X-Org-ID': '5971090'
+        };
+    
+        // Тело запроса с параметром keys
+        const requestBody = body;
+    
+        // Отправляем POST-запрос на указанный URL
+        const response = await axios.post('https://api.tracker.yandex.net/v2/issues/_search', requestBody, { headers });
+    
+        // Возвращаем ответ клиенту
+        const bugsListData = response.data
+        return bugsListData
+      } catch (error) {
+        console.error('Ошибка при отправке запроса:', error);
+        res.status(500).json({ error: 'Произошла ошибка при отправке запроса' });
+      }
+
+      return bugsListData;
+    }
       
 
       
