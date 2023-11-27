@@ -8,14 +8,20 @@ const fs = require('fs');
 
 
 class BugService {
-    async createBug(url, xpath, heightRatio, widthRatio, summary, description, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot) {
+    async createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot) {
         const {domain, path} = await this.getDomainAndPath(url)
         const domainId = await this.getDomainId(domain)
         const pageId = await this.getPageId(path, domainId)
         console.log("ФАЙЛЫ "+actualScreenshot + "ЕЩЕ ОДИН ФАЙЛ "+ expectedScreenshot);
         const imgActualId = await this.attachFilesToTask("ФР", actualScreenshot)
-        const imgExpectedId = await this.attachFilesToTask("ОР", expectedScreenshot)
-        const task = await this.createTaskInTracker(summary, description, OSVersion, browser, pageResolution, url, imgActualId, imgExpectedId)
+        let imgExpectedId
+        console.log("ВЫВОДИМ ЧТО У НАС В ОР "+expectedScreenshot);
+        if (expectedScreenshot !== null) {
+            imgExpectedId = await this.attachFilesToTask("ОР", expectedScreenshot);
+        } else {
+          imgExpectedId = null
+        }
+        const task = await this.createTaskInTracker(summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, url, imgActualId, imgExpectedId)
         const bugNumber = await this.getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, task.id, task.key, summary, OSVersion, browser, pageResolution)
         return bugNumber       
     }
@@ -114,18 +120,28 @@ class BugService {
             }
     }
 
-    async createTaskInTracker(summary, description, OSVersion, browser, pageResolution, url, imgActualId, imgExpectedId) {
-        try {
-          console.log(description);
+    async createTaskInTracker(summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, url, imgActualId, imgExpectedId) {
+    
+      try {
+            let fullDescription
+            let attachmentIds
+            if (imgExpectedId === null) {
+                fullDescription = `### Основные шаги: \n${description}${priority}${executor} #|||**Фактический результат**|**Ожидаемый результат**||||${actualResult} ![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|${expectedResult}|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${OSVersion}|${browser}|${pageResolution}|${url}|||#`;
+                attachmentIds = [imgActualId]
+              } else {
+                fullDescription = `### Основные шаги: \n${description}${priority}${executor} #|||**Фактический результат**|**Ожидаемый результат**||||${actualResult} ![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|${expectedResult}![image.png](/ajax/v2/attachments/${imgExpectedId}?inline=true =400x)|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${OSVersion}|${browser}|${pageResolution}|${url}|||#`;
+              }
             const requestBody = {
                 "summary": summary,
                 
-                "description": `### Основные шаги: \n${description} #|||**Фактический результат**|**Ожидаемый результат**||||![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|![image.png](/ajax/v2/attachments/${imgExpectedId}?inline=true =400x)|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${OSVersion}|${browser}|${pageResolution}|${url}|||#`,
+                "description": fullDescription,
                 "queue": {
                     "id": 1,
                     "key": "TESTFORPLUGIN"
                 },
-                "attachmentIds": [imgActualId]
+                "priority": priority,
+                "tags": ["frontend", "backend"],
+                "attachmentIds": attachmentIds
             };
     
             const response = await axios.post('https://api.tracker.yandex.net/v2/issues', requestBody, {
@@ -153,7 +169,9 @@ class BugService {
     }
 
     async attachFilesToTask(filename, file) {
+      console.log("ЭТО ПРИКРПЛЕННЫЙ "+ file);
         const fileDataPath = `./upload/${file}`;
+
         if (!fs.existsSync(fileDataPath)) {
             throw ApiError.BadRequest('Файл или директория не найдены')
         }

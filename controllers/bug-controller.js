@@ -10,9 +10,9 @@ const ApiError = require('../exceptions/api-error')
 class BugController {
   async createBug(req, res, next) {
     try {
-      const { url, xpath, heightRatio, widthRatio, summary, description, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot } = req.body;
+      const { url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot } = req.body;
       console.log("ЭТО В СЕРВИСЕ "+ actualScreenshot+"ОЖИДАЕМЫЙ "+expectedScreenshot );
-      const bugData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot);
+      const bugData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot);
         res.json(bugData);
     } catch (error) {
       next(error);

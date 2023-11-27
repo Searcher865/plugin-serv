@@ -27,8 +27,9 @@ const fileUploadMiddleware = (actualScreenshot, expectedScreenshot) => {
     console.log("ФАКТИЧЕСКИЙ "+ req.body[actualScreenshot]);
 
     // Обрабатываем второй файл, если предоставлен
-    if (expectedScreenshot) {
+    if (req.files[expectedScreenshot]) {
       const optionalFile = req.files[expectedScreenshot];
+      console.log("Это должно выполнится если ОР есть " +optionalFile) ;
 
       if (optionalFile) {
         const optionalFileName = `${uuid.v4()}${path.extname(optionalFile.name)}`;
@@ -45,6 +46,9 @@ const fileUploadMiddleware = (actualScreenshot, expectedScreenshot) => {
         req.body[expectedScreenshot] = optionalFileName; // сохраняем имя второго файла в объекте запроса
         console.log("ОЖИДАЕМЫЙ "+ req.body[expectedScreenshot]);
       }
+    } else {
+      console.log("Это должно выполнится если ОР ОТСУТСТВУЕТ");
+      req.body[expectedScreenshot] =  null
     }
 
     next();
