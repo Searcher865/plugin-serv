@@ -8,23 +8,131 @@ const fs = require('fs');
 
 
 class BugService {
-    async createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot) {
+    async createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot) {
         const {domain, path} = await this.getDomainAndPath(url)
         const domainId = await this.getDomainId(domain)
         const pageId = await this.getPageId(path, domainId)
+        const {parsedOsVersion, browser} = await this.parseEnvironment(environment)
+        const finalOsVersion = (OsVersion === 'Unknown') ? parsedOsVersion : OsVersion;
+
         console.log("ФАЙЛЫ "+actualScreenshot + "ЕЩЕ ОДИН ФАЙЛ "+ expectedScreenshot);
+
         const imgActualId = await this.attachFilesToTask("ФР", actualScreenshot)
         let imgExpectedId
         console.log("ВЫВОДИМ ЧТО У НАС В ОР "+expectedScreenshot);
+        
         if (expectedScreenshot !== null) {
             imgExpectedId = await this.attachFilesToTask("ОР", expectedScreenshot);
         } else {
           imgExpectedId = null
         }
-        const task = await this.createTaskInTracker(summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, url, imgActualId, imgExpectedId)
-        const bugNumber = await this.getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, task.id, task.key, summary, OSVersion, browser, pageResolution)
+
+        const task = await this.createTaskInTracker(summary, description, actualResult, expectedResult, priority, executor, finalOsVersion, browser, pageResolution, url, imgActualId, imgExpectedId)
+        const bugNumber = await this.getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, task.id, task.key, summary, finalOsVersion, browser, pageResolution)
         return bugNumber       
     }
+
+    async parseEnvironment(environment) {
+      // Регулярные выражения для поиска ОС и браузер
+      let parsedOsVersion =  this.getOsVersion(environment)
+      let browser =  this.getBrowser(environment)
+      return { parsedOsVersion, browser }
+    }
+
+     getOsVersion(environment) {
+      console.log("ВЫВОДИМ ДЛЯ ПАРСЕНГА БРАУЗЕР "+environment);
+      if (environment.includes("Windows NT 10.0")) {
+        return "Windows 10";
+      } else if (environment.includes("Windows NT 6.3")) {
+        return "Windows 8.1";
+      } else if (environment.includes("Windows NT 6.2")) {
+        return "Windows 8";
+      } else if (environment.includes("Windows NT 6.1")) {
+        return "Windows 7";
+      } else if (environment.includes("Windows NT 6.0")) {
+        return "Windows Vista";
+      } else if (environment.includes("Windows NT 5.1")) {
+        return "Windows XP";
+      } else if (environment.includes("Mac OS X 10_15")) {
+        return "macOS 10.15 (Catalina)";
+      } else if (environment.includes("Mac OS X 10_14")) {
+        return "macOS 10.14 (Mojave)";
+      } else if (environment.includes("Linux")) {
+        // Определение конкретных дистрибутивов Linux
+        if (environment.includes("Ubuntu")) {
+          const ubuntuVersion = environment.match(/Ubuntu\/([\d\.]+)/);
+          if (ubuntuVersion) {
+            return `Ubuntu ${ubuntuVersion[1]}`;
+          }
+          return "Ubuntu";
+        }
+        // Другие дистрибутивы Linux могут быть добавлены здесь
+        
+        return "Linux";
+      } else if (environment.includes("Android")) {
+        // Определение версии Android
+        const androidVersion = environment.match(/Android\s([\d\.]+)/);
+        if (androidVersion) {
+          return `Android ${androidVersion[1]}`;
+        }
+        return "Android";
+      } else if (environment.includes("iPhone")) {
+        // Определение версии iOS (iPhone)
+        const iOSVersion = environment.match(/iPhone OS\s([\d_]+)/);
+        if (iOSVersion) {
+          return `iOS ${iOSVersion[1].replace(/_/g, ".")}`;
+        }
+        return "iOS";
+      } else if (environment.includes("iPad")) {
+        // Определение версии iOS (iPad)
+        const iOSVersion = environment.match(/CPU OS\s([\d_]+)/);
+        if (iOSVersion) {
+          return `iOS ${iOSVersion[1].replace(/_/g, ".")}`;
+        }
+        return "iOS";
+      }
+      
+      // Вернуть "Неизвестно", если версия операционной системы не определена
+      return "Неизвестная ОС";
+    }
+
+     getBrowser(environment) {
+        let browserInfo = "Неизвестный браузер"; // По умолчанию, если браузер не определен
+      
+        // Регулярные выражения для поиска названия браузера и его версии
+        const regexChrome = /Chrome\/([\d.]+)/;
+        const regexFirefox = /Firefox\/([\d.]+)/;
+        const regexSafari = /Version\/([\d.]+).*Safari/;
+        const regexEdge = /Edg\/([\d.]+)/;
+        const regexIE = /MSIE ([\d.]+)/;
+        const regexYandex = /YaBrowser\/([\d.]+)/; // Для Яндекс.Браузера
+        const regexMI = /MiuiBrowser\/([\d.]+)/; // Для MI Browser
+        const regexSamsung = /SamsungBrowser\/([\d.]+)/; // Для Samsung Browser
+        const regexOpera = /OPR\/([\d.]+)/; // Для Opera
+      
+        if (regexChrome.test(environment)) {
+          browserInfo = `Chrome ${environment.match(regexChrome)[1]}`;
+        } else if (regexFirefox.test(environment)) {
+          browserInfo = `Firefox ${environment.match(regexFirefox)[1]}`;
+        } else if (regexSafari.test(environment)) {
+          browserInfo = `Safari ${environment.match(regexSafari)[1]}`;
+        } else if (regexEdge.test(environment)) {
+          browserInfo = `Microsoft Edge ${environment.match(regexEdge)[1]}`;
+        } else if (regexIE.test(environment)) {
+          browserInfo = `Internet Explorer ${environment.match(regexIE)[1]}`;
+        } else if (regexYandex.test(environment)) {
+          browserInfo = `Яндекс.Браузер ${environment.match(regexYandex)[1]}`;
+        } else if (regexMI.test(environment)) {
+          browserInfo = `MI Browser ${environment.match(regexMI)[1]}`;
+        } else if (regexSamsung.test(environment)) {
+          browserInfo = `Samsung Browser ${environment.match(regexSamsung)[1]}`;
+        } else if (regexOpera.test(environment)) {
+          browserInfo = `Opera ${environment.match(regexOpera)[1]}`;
+        }
+      
+        return browserInfo;
+    }
+
 
     async getDomainAndPath(url) {
         if (!url || url.trim() === "") {
@@ -75,7 +183,7 @@ class BugService {
         }
     }
 
-    async getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, taskId, taskKey, summary, OSVersion, browser, pageResolution) {
+    async getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, taskId, taskKey, summary, finalOsVersion, browser, pageResolution) {
         try {
             let bugNumber = 1;
             const maxBug = await BugModel.findOne({ domainId }).sort({ bugNumber: -1 });
@@ -92,7 +200,7 @@ class BugService {
                 taskId,
                 taskKey,
                 summary,
-                OSVersion,
+                finalOsVersion,
                 browser,
                 pageResolution
             });
@@ -107,7 +215,7 @@ class BugService {
                 bugNumber: bug.bugNumber,
                 taskKey: bug.taskKey, 
                 summary: bug.summary,
-                OSVersion: bug.OSVersion,
+                finalOsVersion: bug.finalOsVersion,
                 browser: bug.browser,
                 pageResolution: bug.pageResolution
               }));
@@ -120,16 +228,16 @@ class BugService {
             }
     }
 
-    async createTaskInTracker(summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, url, imgActualId, imgExpectedId) {
+    async createTaskInTracker(summary, description, actualResult, expectedResult, priority, executor, finalOsVersion, browser, pageResolution, url, imgActualId, imgExpectedId) {
     
       try {
             let fullDescription
             let attachmentIds
             if (imgExpectedId === null) {
-                fullDescription = `### Основные шаги: \n${description}${priority}${executor} #|||**Фактический результат**|**Ожидаемый результат**||||${actualResult} ![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|${expectedResult}|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${OSVersion}|${browser}|${pageResolution}|${url}|||#`;
+                fullDescription = `### Основные шаги: \n${description}${priority}${executor} #|||**Фактический результат**|**Ожидаемый результат**||||${actualResult} \n![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|${expectedResult}|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${finalOsVersion}|${browser}|${pageResolution}|${url}|||#`;
                 attachmentIds = [imgActualId]
               } else {
-                fullDescription = `### Основные шаги: \n${description}${priority}${executor} #|||**Фактический результат**|**Ожидаемый результат**||||${actualResult} ![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|${expectedResult}![image.png](/ajax/v2/attachments/${imgExpectedId}?inline=true =400x)|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${OSVersion}|${browser}|${pageResolution}|${url}|||#`;
+                fullDescription = `### Основные шаги: \n${description}${priority}${executor} #|||**Фактический результат**|**Ожидаемый результат**||||${actualResult} \n![image.png](/ajax/v2/attachments/${imgActualId}?inline=true =400x)|${expectedResult}\n![image.png](/ajax/v2/attachments/${imgExpectedId}?inline=true =400x)|||||[figma](https://dev3.vaba.783630.ru/)|||#**Окружение:**#|||Устройство|Браузер|Разрешение экрана|Стенд||||${finalOsVersion}|${browser}|${pageResolution}|${url}|||#`;
               }
             const requestBody = {
                 "summary": summary,
@@ -139,7 +247,7 @@ class BugService {
                     "id": 1,
                     "key": "TESTFORPLUGIN"
                 },
-                "priority": priority,
+                "priority": 3,
                 "tags": ["frontend", "backend"],
                 "attachmentIds": attachmentIds
             };
@@ -226,7 +334,7 @@ class BugService {
             bugNumber: bug.bugNumber,
             taskKey: bug.taskKey, 
             summary: bug.summary,
-            OSVersion: bug.OSVersion,
+            finalOsVersion: bug.finalOsVersion,
             browser: bug.browser,
             pageResolution: bug.pageResolution
           }));

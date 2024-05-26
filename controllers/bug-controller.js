@@ -8,16 +8,21 @@ const ApiError = require('../exceptions/api-error')
 
 
 class BugController {
+     // Функция парсинга environment
+   
   async createBug(req, res, next) {
     try {
-      const { url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot } = req.body;
+      const { url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot } = req.body;
       console.log("ЭТО В СЕРВИСЕ "+ actualScreenshot+"ОЖИДАЕМЫЙ "+expectedScreenshot );
-      const bugData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OSVersion, browser, pageResolution, actualScreenshot, expectedScreenshot);
+
+      const bugData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, executor, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot);
         res.json(bugData);
     } catch (error) {
       next(error);
     }
   }
+
+ 
 
   async getBugs(req, res, next) {
     try {
