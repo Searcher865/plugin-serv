@@ -134,25 +134,39 @@ class BugService {
     }
 
 
-    async getDomainAndPath(url) {
-        if (!url || url.trim() === "") {
-            throw ApiError.BadRequest(`URL is empty or null`)
-          }
-        if (url.startsWith('http://')) {
-          url = url.slice('http://'.length);
-        } else if (url.startsWith('https://')) {
-          url = url.slice('https://'.length);
-        }
-        const parts = url.split('/').filter(part => part !== '');
-      
-        const domain = parts.shift();
-        const path = parts.join('/');
+async getDomainAndPath(url) {
+    if (!url || url.trim() === "") {
+        throw ApiError.BadRequest(`URL is empty or null`);
+    }
 
-        return {domain, path};
-      }
+    // Создаем объект URL для анализа URL
+    const parsedUrl = new URL(url.startsWith('http://') || url.startsWith('https://') ? url : `http://${url}`);
+
+    // Удаляем параметр 'fbr' из строки запроса
+    parsedUrl.searchParams.delete('fbr');
+
+    // Получаем обновленный URL без параметра 'fbr'
+    const cleanUrl = parsedUrl.toString();
+
+    // Удаляем протокол и домен, оставляя только путь и параметры запроса (кроме 'fbr')
+    const relativeUrl = cleanUrl.replace(/^https?:\/\//, '').replace(parsedUrl.hostname, '');
+
+    // Разделяем оставшуюся часть URL на части
+    const parts = relativeUrl.split('/').filter(part => part !== '');
+
+    // Извлекаем домен
+    const domain = parsedUrl.hostname;
+
+    // Объединяем оставшиеся части для получения пути
+    const path = parts.join('/');
+
+    return { domain, path };
+}
 
     async getDomainId(domain) {
+  
         try {
+          console.log("Начало выполнения getDomainId");
             const existingDomain = await DomainModel.findOne({ name: domain });
 
             if (existingDomain) {
