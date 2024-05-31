@@ -166,7 +166,6 @@ async getDomainAndPath(url) {
     async getDomainId(domain) {
   
         try {
-          console.log("Начало выполнения getDomainId");
             const existingDomain = await DomainModel.findOne({ name: domain });
 
             if (existingDomain) {

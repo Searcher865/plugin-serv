@@ -1,14 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 const uuid = require('uuid');
+const ApiError = require('../exceptions/api-error')
 
 const fileUploadMiddleware = (actualScreenshot, expectedScreenshot) => {
   return (req, res, next) => {
+    // Проверка наличия файла actualScreenshot
+    if (!req.files || !req.files[actualScreenshot]) {
+      return next(ApiError.BadRequest('Скриншот окна браузера не был отправлен на сервер'));
+    }
     const file = req.files[actualScreenshot];
     
-    if (!file) {
-      return res.status(400).json({ error: 'Обязательный файл не был загружен.' });
-    }
+
 
     const uploadDir = path.join(__dirname, '../upload');
     const fileExtension = path.extname(file.name); 
