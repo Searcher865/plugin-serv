@@ -11,10 +11,12 @@ const BugSchema = new Schema({
   bugNumber: { type: Number},
   taskId: { type: String },
   taskKey: {type: String},
+  parentKey: { type: mongoose.Schema.Types.ObjectId },
   summary: {type: String},
   finalOsVersion: {type: String},
   browser: {type: String},
-  pageResolution: {type: String}
+  pageResolution: {type: String},
+  status: {type: String}
 });
 
 module.exports = model('Bug', BugSchema)

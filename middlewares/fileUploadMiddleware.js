@@ -1,60 +1,54 @@
 const fs = require('fs');
 const path = require('path');
 const uuid = require('uuid');
-const ApiError = require('../exceptions/api-error')
+const ApiError = require('../exceptions/api-error');
 
 const fileUploadMiddleware = (actualScreenshot, expectedScreenshot) => {
   return (req, res, next) => {
     // Проверка наличия файла actualScreenshot
-    if (!req.files || !req.files[actualScreenshot]) {
+    if (!req.body || !req.body[actualScreenshot]) {
       return next(ApiError.BadRequest('Скриншот окна браузера не был отправлен на сервер'));
     }
-    const file = req.files[actualScreenshot];
-    
 
-
+    const actualScreenshotBase64 = req.body[actualScreenshot];
     const uploadDir = path.join(__dirname, '../upload');
-    const fileExtension = path.extname(file.name); 
-    const fileName = `${uuid.v4()}${fileExtension}`; 
+    const fileName = `${uuid.v4()}.jpeg`; // Указываем расширение файла
     const filePath = path.join(uploadDir, fileName);
 
-    const writeStream = fs.createWriteStream(filePath);
-    writeStream.write(file.data, (error) => {
+    const base64Data = actualScreenshotBase64.replace(/^data:image\/jpeg;base64,/, "");
+    fs.writeFile(filePath, base64Data, 'base64', (error) => {
       if (error) {
         console.error('Ошибка записи файла:', error);
         return res.status(500).json({ error: 'Ошибка записи файла.' });
       }
-    });
-    writeStream.end();
-    req.body[actualScreenshot] = fileName; // сохраняем имя файла в объекте запроса для дальнейшего использования
-    console.log("ФАКТИЧЕСКИЙ "+ req.body[actualScreenshot]);
 
-    // Обрабатываем второй файл, если предоставлен
-    if (req.files[expectedScreenshot]) {
-      const optionalFile = req.files[expectedScreenshot];
-      console.log("Это должно выполнится если ОР есть " +optionalFile) ;
+      req.body[actualScreenshot] = fileName; // сохраняем имя файла в объекте запроса для дальнейшего использования
+      console.log("ФАКТИЧЕСКИЙ " + req.body[actualScreenshot]);
 
-      if (optionalFile) {
-        const optionalFileName = `${uuid.v4()}${path.extname(optionalFile.name)}`;
+      // Обрабатываем второй файл, если предоставлен
+      if (req.body[expectedScreenshot]) {
+        const expectedScreenshotBase64 = req.body[expectedScreenshot];
+        const optionalFileName = `${uuid.v4()}.jpeg`;
         const optionalFilePath = path.join(uploadDir, optionalFileName);
 
-        const optionalWriteStream = fs.createWriteStream(optionalFilePath);
-        optionalWriteStream.write(optionalFile.data, (optionalError) => {
+        const optionalBase64Data = expectedScreenshotBase64.replace(/^data:image\/jpeg;base64,/, "");
+        fs.writeFile(optionalFilePath, optionalBase64Data, 'base64', (optionalError) => {
           if (optionalError) {
             console.error('Ошибка записи второго файла:', optionalError);
             return res.status(500).json({ error: 'Ошибка записи второго файла.' });
           }
-        });
-        optionalWriteStream.end();
-        req.body[expectedScreenshot] = optionalFileName; // сохраняем имя второго файла в объекте запроса
-        console.log("ОЖИДАЕМЫЙ "+ req.body[expectedScreenshot]);
-      }
-    } else {
-      console.log("Это должно выполнится если ОР ОТСУТСТВУЕТ");
-      req.body[expectedScreenshot] =  null
-    }
 
-    next();
+          req.body[expectedScreenshot] = optionalFileName; // сохраняем имя второго файла в объекте запроса
+          console.log("ОЖИДАЕМЫЙ " + req.body[expectedScreenshot]);
+
+          next();
+        });
+      } else {
+        console.log("Это должно выполнится если ОР ОТСУТСТВУЕТ");
+        req.body[expectedScreenshot] = null;
+        next();
+      }
+    });
   };
 };
 

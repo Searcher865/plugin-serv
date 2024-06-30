@@ -24,6 +24,7 @@
     "mongoose": "^7.5.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.5",
+    "ua-parser-js": "^1.0.38",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
