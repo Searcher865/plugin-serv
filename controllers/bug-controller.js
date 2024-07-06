@@ -1,6 +1,6 @@
 
 const bugService = require('../service/bug-service');
-const bugListService = require('../service/bugList-service');
+const bugStatusUpdate = require('../service/bugStatusUpdate-service');
 const fs = require('fs');
 const path = require('path');
 const uuid = require('uuid');
@@ -14,15 +14,15 @@ class BugController {
    
   async createBug(req, res, next) {
     try {
-      const { url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, tags, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot, parentTaskForForm} = req.body;
+      const { url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, tags, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot, parentKeyForForm} = req.body;
       const userID = req.user.id
       console.log("Данные пользователя 0"+ JSON.stringify(req.user, null, 2));
       console.log("ЭТО В СЕРВИСЕ "+ actualScreenshot+"ОЖИДАЕМЫЙ "+expectedScreenshot );
-      const bugsData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, tags, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot, userID, parentTaskForForm);
+      const bugsData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, tags, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot, userID, parentKeyForForm);
       
-      const newParentTaskForForm = await userService.updateParentTaskForForm(userID, parentTaskForForm)
-      console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentTaskForForm));
-        res.json({ bugs: bugsData, parentTaskForForm: newParentTaskForForm });
+      const newparentKeyForForm = await userService.updateparentKeyForForm(userID, parentKeyForForm)
+      console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentKeyForForm));
+        res.json({ bugs: bugsData, parentKeyForForm: newparentKeyForForm });
     } catch (error) {
       next(error);
     }
@@ -41,9 +41,9 @@ class BugController {
   //     } 
   //     console.log("Данные пользователя 2"+req.user.id);
   //     const userID = req.user.id
-  //     const newParentTask = await userService.getParentTaskForForm(userID)
-  //     const bugsList = await bugService.getUpdatedBugList(bugsData, newParentTask, userID);
-  //     res.json({ bugs: bugsList, parentTaskForForm: newParentTask  });
+  //     const newparentKey = await userService.getparentKeyForForm(userID)
+  //     const bugsList = await bugService.getUpdatedBugList(bugsData, newparentKey, userID);
+  //     res.json({ bugs: bugsList, parentKeyForForm: newparentKey  });
       
   //   } catch (error) {
   //     next(error);
@@ -82,16 +82,16 @@ class BugController {
   async getBugs(req, res, next) {
     try {
       const userID = req.user.id
-      const { parentTaskForList, url } = req.query;
-      const bugsListData = await bugListService.getUpdatedBugs(parentTaskForList, userID, url);
+      const { parentKey, url } = req.query;
+      const bugsListData = await bugStatusUpdate.getUpdatedBugsForUrl(parentKey, userID, url);
       if (bugsListData === null) {
         res.status(404).json({ error: 'Список багов не найден' });
       } 
       console.log("СПИСОК БАГОВ"+JSON.stringify(bugsListData));
 
-        const parentTaskForForm = await userService.getParentTaskForForm(userID)
-        console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentTaskForForm));
-          res.json({ bugs: bugsListData, parentTaskForForm: parentTaskForForm });
+        const parentKeyForForm = await userService.getparentKeyForForm(userID)
+        console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentKeyForForm));
+          res.json({ bugs: bugsListData, parentKeyForForm: parentKeyForForm });
 
     } catch (error) {
       next(error);
@@ -101,15 +101,15 @@ class BugController {
   async getBugList(req, res, next) {
     try {
       const userID = req.user.id
-      const { parentTaskForList, url } = req.query;
-      const bugsListData = await bugListService.getUpdatedBugList(parentTaskForList, userID);
+      const { parentKey } = req.query;
+      const bugsListData = await bugStatusUpdate.getUpdatedFullBugsFromTask(parentKey, userID);
       if (bugsListData === null) {
         res.status(404).json({ error: 'Список багов не найден' });
       } 
       console.log("СПИСОК БАГОВ"+JSON.stringify(bugsListData));
-      const parentTaskForForm = await userService.getParentTaskForForm(userID)
-      console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentTaskForForm));
-        res.json({ bugs: bugsListData, parentTaskForForm: parentTaskForForm });
+      const parentKeyForForm = await userService.getparentKeyForForm(userID)
+      console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentKeyForForm));
+        res.json({ bugs: bugsListData, parentKeyForForm: parentKeyForForm });
       
     } catch (error) {
       next(error);

@@ -79,19 +79,19 @@ class UserService {
     }
 
 
-    async getParentTaskForFormByUserId(userId) {
+    async getparentKeyForFormByUserId(userId) {
         try {
             const user = await UserModel.findById(userId);
             if (!user) {
                 throw new Error('Пользователь не найден');
             }
-            return user.parentTaskForForm;
+            return user.parentKeyForForm;
         } catch (error) {
             throw error;
         }
     }
 
-    async updateParentTaskForForm(userID, newParent) {
+    async updateparentKeyForForm(userID, newParent) {
         try {
             // Находим пользователя по userID
             const user = await UserModel.findById(userID);
@@ -101,26 +101,26 @@ class UserService {
             }
     
             // Проверяем, отличается ли новый parent от текущего значения
-            if (user.parentTaskForForm === newParent) {
-                console.log(`Значение parentTaskForForm для пользователя с ID ${userID} уже установлено на "${newParent}". Обновление не требуется.`);
-                return user.parentTaskForForm; // Возвращаем текущего пользователя без изменений
+            if (user.parentKeyForForm === newParent) {
+                console.log(`Значение parentKeyForForm для пользователя с ID ${userID} уже установлено на "${newParent}". Обновление не требуется.`);
+                return user.parentKeyForForm; // Возвращаем текущего пользователя без изменений
             }
     
-            // Обновляем значение parentTaskForForm у пользователя
-            user.parentTaskForForm = newParent;
+            // Обновляем значение parentKeyForForm у пользователя
+            user.parentKeyForForm = newParent;
     
             // Сохраняем обновленного пользователя в базе данных
             await user.save();
     
-            console.log(`Значение parentTaskForForm для пользователя с ID ${userID} успешно обновлено на "${newParent}".`);
-            return user.parentTaskForForm; // Возвращаем обновленного пользователя, если это необходимо
+            console.log(`Значение parentKeyForForm для пользователя с ID ${userID} успешно обновлено на "${newParent}".`);
+            return user.parentKeyForForm; // Возвращаем обновленного пользователя, если это необходимо
         } catch (error) {
-            console.error(`Ошибка при обновлении parentTaskForForm для пользователя с ID ${userID}:`, error.message);
+            console.error(`Ошибка при обновлении parentKeyForForm для пользователя с ID ${userID}:`, error.message);
             throw error; // Пробрасываем ошибку дальше, чтобы ее можно было обработать
         }
     }
 
-    async getParentTaskForForm(userID) {
+    async getparentKeyForForm(userID) {
         try {
             // Находим пользователя по userID
             const user = await UserModel.findById(userID);
@@ -128,10 +128,10 @@ class UserService {
             if (!user) {
                 throw new Error('Пользователь не найден');
             }
-            console.log("УСПЕШНОЕ ВОЗВРАЩЕНИЕ "+user.parentTaskForForm);
-            return user.parentTaskForForm; // Возвращаем обновленного пользователя, если это необходимо
+            console.log("УСПЕШНОЕ ВОЗВРАЩЕНИЕ "+user.parentKeyForForm);
+            return user.parentKeyForForm; // Возвращаем обновленного пользователя, если это необходимо
         } catch (error) {
-            console.error(`Ошибка при обновлении parentTaskForForm для пользователя с ID ${userID}:`, error.message);
+            console.error(`Ошибка при обновлении parentKeyForForm для пользователя с ID ${userID}:`, error.message);
             throw error; // Пробрасываем ошибку дальше, чтобы ее можно было обработать
         }
     }

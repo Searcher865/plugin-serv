@@ -17,6 +17,17 @@ class UrlHelper {
 
         return { domain, path };
     }
+
+    extractParent(parent) {
+        // Регулярное выражение для поиска шаблона <PROJECT>-<NUMBER>
+        const regex = /([A-ZА-Я]+-\d+)/;
+        
+        // Применяем регулярное выражение к входной строке
+        const match = parent.match(regex);
+        
+        // Если найдено соответствие, возвращаем его, иначе возвращаем null
+        return match ? match[0] : null;
+      }
 }
 
 module.exports = new UrlHelper ();

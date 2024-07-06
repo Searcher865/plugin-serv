@@ -1,13 +1,13 @@
 module.exports = class UserDto {
     email;
     id;
-    parentTaskForForm;
+    parentKeyForForm;
     isActivated;
 
     constructor(model) {
         this.email = model.email;
         this.id = model._id;
-        this.parentTaskForForm = model.parentTaskForForm;
+        this.parentKeyForForm = model.parentKeyForForm;
         this.isActivated = model.isActivated;
     }
 }

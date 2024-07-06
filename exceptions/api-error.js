@@ -12,7 +12,15 @@ module.exports = class ApiError extends Error {
         return new ApiError(401, 'Пользователь не авторизован');
     }
 
+    static NotFound(message) {
+        return new ApiError(404, message || 'Ресурс не найден');
+    }
+
     static BadRequest(message, errors = []) {
         return new ApiError(400, message, errors);
+    }
+
+    static InternalServerError(message, errors = []) {
+        return new ApiError(500, message, errors);
     }
 }
