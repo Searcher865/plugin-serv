@@ -5,6 +5,7 @@ const {body} = require('express-validator')
 const authMiddleware = require('../middlewares/auth-middleware')
 const bugController = require('../controllers/bug-controller');
 const fileUploadMiddleware = require('../middlewares/fileUploadMiddleware');
+const projectController = require('../controllers/projectController');
 
 
 router.post('/registration', 
@@ -21,5 +22,6 @@ router.get('/bugs', authMiddleware, bugController.getBugs);
 router.get('/bug', authMiddleware, bugController.getBug);
 router.get('/attachments', bugController.getAttachments);
 router.get('/bugList', authMiddleware, bugController.getBugList);
+router.post('/createProject', projectController.createProject);
 
 module.exports = router

@@ -12,13 +12,18 @@ const FormData = require('form-data');
 const ApiError = require('../exceptions/api-error')
 const fs = require('fs');
 const path = require('path');
+const Project = require('../models/project-model');
 
 
 class BugService {
     async createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, tags, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot, userID, parentKeyForForm) {
+      console.log("Выводим урл в createBug 1 :"+url);
       const {domain, path} = await urlHelper.getDomainAndPath(url)
-        const domainId = await this.getDomainId(domain)
-        const pageId = await this.getPageId(path, domainId)
+      console.log("Выводим урл в createBug 2 :"+domain + " | "+path);
+        // const domainId = await this.getDomainId(domain)
+        const project = await this.findProjectByDomain(domain)
+        // const pageId = await this.getPageId(path, domainId)
+        const pageId = await this.getPageId(path, project)
         console.log("ОКРУЖЕНИЕ "+environment);
         console.log("ID юзера по которому будет поиск в БД "+userID);
         const trackerID = await this.getTrackerIDByUserID(userID)
@@ -47,13 +52,18 @@ class BugService {
         console.log("Что выводится в parentAfterSave "+parentAfterSave);
         console.log("ВЫВОДИМ СУММАРИ ПЕРЕД ФУНКЦИЯМИ "+summary);
         const task = await this.createTaskInTracker(summary, description, actualResult, expectedResult, priority, finalTags, finalOsVersion, browser, pageResolution, url, imgActualId, imgExpectedId, trackerID, parentKey)
-        const bugs = await this.getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, task.id, task.key, task.status, summary, finalOsVersion, browser, pageResolution, parentAfterSave)
+        const createdAt = this.extractDate(task.createdAt)
+        const bugs = await this.getBugNumber(project, pageId, xpath, heightRatio, widthRatio, task.id, task.key, task.status, createdAt, task.author, summary, finalOsVersion, browser, pageResolution, parentAfterSave)
         console.log("ВЫВОДИМ bugNumber1 "+JSON.stringify(bugs));
         const bugNumber = await BugStatusUpdate.getUpdatedBugs(parentKey, userID, bugs)
         return bugNumber       
     }
 
-
+    extractDate(dateTimeString) {
+      // Используем метод split для разделения строки по символу 'T'
+      const datePart = dateTimeString.split('T')[0];
+      return datePart;
+  }
 
     async getTrackerIDByUserID(userID) {
       try {
@@ -90,38 +100,67 @@ class BugService {
       }
     }
 
-    async getDomainId(domain) {
+    // async getDomainId(domain) {
   
-        try {
-            const existingDomain = await DomainModel.findOne({ name: domain });
+    //     try {
+    //         const existingDomain = await DomainModel.findOne({ name: domain });
 
-            if (existingDomain) {
-            return existingDomain._id;
-            } else {
-            const savedDomain = await DomainModel.create({name: domain})
+    //         if (existingDomain) {
+    //         return existingDomain._id;
+    //         } else {
+    //         const savedDomain = await DomainModel.create({name: domain})
 
-            return savedDomain._id;
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            throw error;
-            }
+    //         return savedDomain._id;
+    //         }
+    //     } catch (error) {
+    //         console.error('Ошибка:', error);
+    //         throw error;
+    //         }
+    // }
+
+    async findProjectByDomain(domain) {
+      try {
+        console.log("ВЫВОДИМ domain из findProjectByDomain "+domain);
+        const project = await Project.findOne({ domains: domain });
+        if (!project) {
+          throw new Error('Проект с указанным доменом не найден');
+        }
+        return project.name;
+      } catch (error) {
+        console.error(error);
+        throw new Error('Ошибка при поиске проекта по домену: ' + error.message);
+      }
     }
       
-    async getPageId(path, domainId) {
-        try {        
-        const page = await PageModel.findOne({ path, domainId });
-        if (page) {
-            return page._id;
-        } else {
-            const savedPage = await PageModel.create({ path, domainId})
-            return savedPage._id;
-        }
-        } catch (error) {
-        console.error('Ошибка:', error);
-        throw error;
-        }
-    }
+    // async getPageId(path, domainId) {
+    //     try {        
+    //     const page = await PageModel.findOne({ path, domainId });
+    //     if (page) {
+    //         return page._id;
+    //     } else {
+    //         const savedPage = await PageModel.create({ path, domainId})
+    //         return savedPage._id;
+    //     }
+    //     } catch (error) {
+    //     console.error('Ошибка:', error);
+    //     throw error;
+    //     }
+    // }
+
+    async getPageId(path, project) {
+      try {        
+      const page = await PageModel.findOne({ path, project });
+      if (page) {
+          return page._id;
+      } else {
+          const savedPage = await PageModel.create({ path, project})
+          return savedPage._id;
+      }
+      } catch (error) {
+      console.error('Ошибка:', error);
+      throw error;
+      }
+  }
     // Определение функции getLastThreeNumbers
     getLastThreeNumbers(taskKey) {
       // Используем регулярное выражение для поиска всех цифр в строке
@@ -141,56 +180,66 @@ class BugService {
   }
 
   // Определение метода getBugNumber
-  async getBugNumber(domainId, pageId, xpath, heightRatio, widthRatio, taskId, taskKey, status, summary, finalOsVersion, browser, pageResolution, parentAfterSave) {
-      const bugNumber = this.getLastThreeNumbers(taskKey);
-      console.log("Выводим номер бага из getLastThreeNumbers: " + bugNumber);
-      console.log("Выводим summary из getLastThreeNumbers: " + summary);
-      
-      try {
-        // Проверка наличия parentKey в таблице parentKeySchema
-        console.log("ВЫВОДИМ parentKey перед parentKey"+parentAfterSave);
-
-    
-        // Использование _id найденного или созданного документа как parentKey для нового бага
-        const newBug = new BugModel({
-              domainId,
-              pageId,
-              xpath,
-              heightRatio,
-              widthRatio,
-              taskId,
-              taskKey,
-              summary,
-              status,
-              finalOsVersion,
-              browser,
-              pageResolution,
-              parentKey: parentAfterSave,
-              bugNumber
-          });
-          await newBug.save();
-          const bugs = await BugModel.find({ domainId, pageId, parentKey: parentAfterSave }).exec();
-
-          const filteredBugs = bugs.map(bug => ({
-              xpath: bug.xpath,
-              taskId: bug.taskId,
-              heightRatio: bug.heightRatio,
-              widthRatio: bug.widthRatio,
-              bugNumber: bug.bugNumber,
-              taskKey: bug.taskKey,
-              summary: bug.summary,
-              status: bug.status,
-              finalOsVersion: bug.finalOsVersion,
-              browser: bug.browser,
-              pageResolution: bug.pageResolution,
-          }));
-
-          return filteredBugs;
-
-      } catch (error) {
-          console.error("Ошибка:", error);
-          throw ApiError.BadRequest('Задача успешно создана в баг трекере, но произошла ошибка при сохранении в БД плагина', error);
-      }
+  async getBugNumber(project, pageId, xpath, heightRatio, widthRatio, taskId, taskKey, status, createdAt, author, summary, finalOsVersion, browser, pageResolution, parentAfterSave) {
+    const bugNumber = this.getLastThreeNumbers(taskKey);
+    console.log("Выводим номер бага из getLastThreeNumbers: " + bugNumber);
+    console.log("Выводим summary из getLastThreeNumbers: " + summary);
+  
+    try {
+      // Проверка наличия parentKey в таблице parentKeySchema
+      console.log("ВЫВОДИМ parentKey перед parentKey" + parentAfterSave);
+  
+      // Использование _id найденного или созданного документа как parentKey для нового бага
+      const newBug = new BugModel({
+        project,
+        pageId,
+        xpath,
+        heightRatio,
+        widthRatio,
+        taskId,
+        taskKey,
+        summary,
+        status,
+        createdAt,
+        author,
+        finalOsVersion,
+        browser,
+        pageResolution,
+        parentKey: parentAfterSave,
+        bugNumber
+      });
+  
+      await newBug.save();
+      const bugs = await BugModel.find({ project, pageId, parentKey: parentAfterSave }).exec();
+  
+      // Находим страницу для каждого бага и добавляем path в filteredBugs
+      const filteredBugs = await Promise.all(bugs.map(async bug => {
+        const page = await PageModel.findById(bug.pageId).exec();
+        return {
+          xpath: bug.xpath,
+          taskId: bug.taskId,
+          heightRatio: bug.heightRatio,
+          widthRatio: bug.widthRatio,
+          bugNumber: bug.bugNumber,
+          taskKey: bug.taskKey,
+          summary: bug.summary,
+          status: bug.status,
+          createdAt: bug.createdAt,
+          author: bug.author,
+          finalOsVersion: bug.finalOsVersion,
+          browser: bug.browser,
+          pageResolution: bug.pageResolution,
+          existsOnPage: true,
+          path: page ? page.path : null // Добавляем путь к странице, если он существует
+        };
+      }));
+  
+      return filteredBugs;
+  
+    } catch (error) {
+      console.error("Ошибка:", error);
+      throw ApiError.BadRequest('Задача успешно создана в баг трекере, но произошла ошибка при сохранении в БД плагина', error);
+    }
   }
 
 
@@ -233,7 +282,7 @@ class BugService {
                 const responseData = response.data;
                 if (responseData && responseData.id) {
                     console.log('Задача успешно создана. ID задачи:', responseData.id);
-                    return {id: responseData.id, key:responseData.key, status: responseData.status.display};
+                    return {id: responseData.id, key:responseData.key, status: responseData.status.display, createdAt: responseData.createdAt, author: responseData.createdBy.display};
                 } else {
                     throw ApiError.BadRequest('Не удалось получить ID задачи из ответа')
                 }
@@ -376,7 +425,7 @@ class BugService {
         return parentKeyFromDB._id;
       } catch (error) {
         console.error("Ошибка:", error);
-        throw new Error('Произошла ошибка при сохранении parentKey в БД');
+        throw ApiError.InternalServerError('Поле Родительская задача пустое');
       }
     }
 

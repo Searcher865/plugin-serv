@@ -8,6 +8,7 @@ const UrlHelper = require('../helpers/urlHelper');
 const FindParentKey = require('../helpers/findParentKey');
 const BugDTO = require('../dtos/bug-dto');
 const ApiError = require('../exceptions/api-error');
+const Project = require('../models/project-model');
 
 class bugStatusUpdateService {
   async getSubtasksFromParent(parentKey, trackerID) {
@@ -40,40 +41,90 @@ class bugStatusUpdateService {
     }
   }
 
-  async getBugsFromDatabase(parentKey) {
-    try {
-      console.log("ФУНКЦИЯ getBugsFromDatabase сработала " + parentKey);
-      return await BugModel.find({ parentKey }).exec();
-    } catch (error) {
-      console.error(error);
-      throw ApiError.BadRequest('Ошибка при получении списка багов из базы данных');
-    }
+
+// Метод для поиска проекта по parentKey
+async findProjectByParentKey(parentKey) {
+  const bug = await BugModel.findOne({ parentKey }).exec();
+  return bug ? bug.project : null;
+}
+
+// Модифицированная функция getBugsFromDatabase
+async getBugsFromDatabase(parentKey, url) {
+  console.log("ВЫводим из getBugsFromDatabase наш url "+url);
+  try {
+    console.log("ФУНКЦИЯ getBugsFromDatabase сработала " + parentKey);
+    const { domain, path } = await UrlHelper.getDomainAndPath(url);
+    // Находим проект, связанный с parentKey
+    const project = await this.findProjectByParentKey(parentKey);
+    console.log("Проект найден: " + project);
+
+    // Находим все страницы, связанные с проектом
+    const pages = await PageModel.find({ project }).exec();
+    console.log("Страницы проекта: " + JSON.stringify(pages));
+
+    // Находим баги по parentKey и заполняем их pageId
+    const bugs = await BugModel.find({ parentKey }).populate('pageId').exec();
+    console.log("Баги найдены: " + JSON.stringify(bugs));
+
+    // Добавляем path в каждый баг
+    const bugsWithPath = bugs.map(bug => {
+      const bugPage = pages.find(page => page._id.equals(bug.pageId._id));
+      return {
+        ...bug.toObject(),
+        path: bugPage ? bugPage.path : null,
+        existsOnPage: bugPage && bugPage.path === path
+      };
+    });
+
+    console.log("Баги с path: " + JSON.stringify(bugsWithPath));
+    return bugsWithPath;
+  } catch (error) {
+    console.error(error);
+    throw new Error('Ошибка при получении списка багов из базы данных');
   }
+}
 
-  async getBugsUrlFromDatabase(parentKey, url) {
-    try {
-      console.log("Выводим начало getBugsUrlFromDatabase" + parentKey + " " + url);
-      const { domain, path } = await UrlHelper.getDomainAndPath(url);
-      console.log("ВЫВОДИМ getBugsUrlFromDatabase - domain, path" + domain + " | " + path);
-      const findDomain = await DomainModel.findOne({ name: domain }).exec();
-      console.log("ВЫВОДИМ getBugsUrlFromDatabase - findDomain" + findDomain);
-      if (!findDomain) return [];
+async getBugsUrlFromDatabase(parentKey, url) {
+  try {
+    console.log("Выводим начало getBugsUrlFromDatabase: " + parentKey + " " + url);
+    const { domain, path } = await UrlHelper.getDomainAndPath(url);
+    console.log("Выводим domain getBugsUrlFromDatabase: " + domain);
+    const project = await this.findProjectByDomain(domain);
+    console.log("ВЫВОДИМ getBugsUrlFromDatabase - domain, path " + domain + " | " + path);
 
-      const domainId = findDomain._id;
-      const pages = await PageModel.find({ domainId, path }).exec();
-      console.log("ВЫВОДИМ getBugsUrlFromDatabase - pages" + pages);
-      if (pages.length === 0) return [];
+    console.log("ВЫВОДИМ getBugsUrlFromDatabase - project и path: " + project + " | " + path);
+    const pages = await PageModel.find({ project }).exec();
+    console.log("ВЫВОДИМ getBugsUrlFromDatabase - pages: " + JSON.stringify(pages));
 
-      const pageId = pages[0]._id;
-      const bugs = await BugModel.find({ parentKey, domainId, pageId }).exec();
-      console.log("Выводим список багов getBugsUrlFromDatabase" + JSON.stringify(bugs));
-      return bugs;
-    } catch (error) {
-      console.error(error);
-      throw ApiError.BadRequest('Ошибка при получении списка багов по URL из базы данных');
-    }
+    // Находим страницу с совпадающим path
+    const matchingPage = pages.find(page => page.path === path);
+
+    // Если совпадающей страницы нет, вернуть пустой массив
+    if (!matchingPage) return [];
+
+    const bugs = await BugModel.find({ parentKey, project }).exec();
+    console.log("Выводим список багов getBugsUrlFromDatabase: " + JSON.stringify(bugs));
+
+    // Фильтруем баги, относящиеся к странице с совпадающим path
+    const bugsWithMatchingPage = bugs.filter(bug => matchingPage._id.equals(bug.pageId));
+
+    // Добавляем path в каждый баг
+    const bugsWithPageInfo = bugsWithMatchingPage.map(bug => ({
+      ...bug.toObject(),
+      path: matchingPage.path,
+      existsOnPage: true
+    }));
+
+    console.log("Выводим список багов с информацией о странице getBugsUrlFromDatabase: " + JSON.stringify(bugsWithPageInfo));
+    return bugsWithPageInfo;
+  } catch (error) {
+    console.error("Ошибка в getBugsUrlFromDatabase: " + error.message);
+    throw error; // Перебрасываем оригинальную ошибку дальше
   }
+}
 
+  
+  
   async updateBugStatuses(subtasks, bugs) {
     const updatedBugs = [];
 
@@ -99,7 +150,7 @@ class bugStatusUpdateService {
     }
   }
 
-  async getUpdatedFullBugsFromTask(parentKey, userID) {
+  async getUpdatedFullBugsFromTask(parentKey, userID, url) {
     try {
       const finalParent = UrlHelper.extractParent(parentKey);
       const trackerID = await this.getTrackerIDByUserID(userID);
@@ -109,7 +160,7 @@ class bugStatusUpdateService {
 
       console.log("ИСПОЛЬЗУЕМ остальное");
       const parentKeyID = await FindParentKey.getparentKeyIdByParentKey(finalParent);
-      const bugsFromDB = await this.getBugsFromDatabase(parentKeyID);
+      const bugsFromDB = await this.getBugsFromDatabase(parentKeyID, url);
       const updatedBugs = await this.updateBugStatuses(subtasks, bugsFromDB);
 
       console.log("ВЫВОДИМ СПИСОК updatedBugs " + JSON.stringify(updatedBugs));
@@ -120,24 +171,43 @@ class bugStatusUpdateService {
     }
   }
 
+  async findProjectByDomain(domain) {
+    try {
+      console.log("ВЫВОДИМ domain из findProjectByDomain " + domain);
+      const project = await Project.findOne({ domains: domain });
+      if (!project) {
+        throw ApiError.NotFound('Данный url не привязан ни к одному проекту');
+      }
+      return project.name;
+    } catch (error) {
+      console.error("Ошибка в findProjectByDomain: " + error.message);
+      throw ApiError.InternalServerError('Ошибка при поиске проекта по домену: ' + error.message);
+    }
+  }
+
   async getUpdatedBugsForUrl(parentKey, userID, url) {
     try {
       const finalParent = UrlHelper.extractParent(parentKey);
       const trackerID = await this.getTrackerIDByUserID(userID);
       console.log("ВЫВОДИМ trackerID в getUpdatedBugList " + trackerID);
-
+  
       const subtasks = await this.getSubtasksFromParent(finalParent, trackerID);
-
-      console.log("ИСПОЛЬЗУЕМ url !== null");
+      
       const parentKeyID = await FindParentKey.getparentKeyIdByParentKey(finalParent);
+  
+      console.log("Выводим url and parentKeyID in getUpdatedBugsForUrl: "+url +" "+parentKeyID);
       const bugsFromDB = await this.getBugsUrlFromDatabase(parentKeyID, url);
+      console.log("Список багов которые нашли в getBugsUrlFromDatabase из getUpdatedBugsForUrl: " + JSON.stringify(bugsFromDB));
       const updatedBugs = await this.updateBugStatuses(subtasks, bugsFromDB);
-
+  
       console.log("ВЫВОДИМ СПИСОК updatedBugs " + JSON.stringify(updatedBugs));
       return updatedBugs;
     } catch (error) {
-      console.error(error);
-      throw error; // Перебрасываем оригинальную ошибку дальше
+      console.error("Ошибка в getUpdatedBugsForUrl: " + error.message);
+      if (error instanceof ApiError) {
+        throw error; // Перебрасываем ApiError дальше
+      }
+      throw ApiError.InternalServerError('Неизвестная ошибка: ' + error.message);
     }
   }
 
@@ -150,6 +220,7 @@ class bugStatusUpdateService {
       const subtasks = await this.getSubtasksFromParent(finalParent, trackerID);
 
       console.log("ИСПОЛЬЗУЕМ bugs !== null");
+      console.log("ВЫВОДИМ СПИСОК БАГОВ из getUpdatedBugs "+JSON.stringify(bugs));
       const updatedBugs = await this.updateBugStatuses(subtasks, bugs);
 
       console.log("ВЫВОДИМ СПИСОК updatedBugs " + JSON.stringify(updatedBugs));

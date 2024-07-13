@@ -6,15 +6,22 @@ class UrlHelper {
         if (!url || url.trim() === "") {
             throw ApiError.BadRequest(`URL is empty or null`);
         }
-
-        const parsedUrl = new URL(url.startsWith('http://') || url.startsWith('https://') ? url : `http://${url}`);
+    
+        // Добавляем схему по умолчанию, если она отсутствует
+        const formattedUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `http://${url}`;
+        const parsedUrl = new URL(formattedUrl);
+    
         parsedUrl.searchParams.delete('fbr');
-        const cleanUrl = parsedUrl.toString();
-        const relativeUrl = cleanUrl.replace(/^https?:\/\//, '').replace(parsedUrl.hostname, '');
-        const parts = relativeUrl.split('/').filter(part => part !== '');
-        const domain = parsedUrl.hostname;
-        const path = parts.join('/');
-
+        let domain = parsedUrl.hostname;
+        
+        // Добавляем порт к домену, если он существует и если домен является localhost
+        if (parsedUrl.port) {
+            domain += `:${parsedUrl.port}`;
+        }
+    
+        // Используем свойство pathname объекта URL для получения пути без порта
+        const path = parsedUrl.pathname.replace(/^\//, '');
+    
         return { domain, path };
     }
 

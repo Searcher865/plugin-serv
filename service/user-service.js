@@ -6,6 +6,7 @@ const tokenService = require('./token-service')
 const UserDto = require('../dtos/user-dto')
 const ApiError = require('../exceptions/api-error')
 
+
 class UserService {
     async registration(email, password) {
         const candidate = await UserModel.findOne({email})
@@ -100,20 +101,27 @@ class UserService {
                 throw new Error('Пользователь не найден');
             }
     
-            // Проверяем, отличается ли новый parent от текущего значения
-            if (user.parentKeyForForm === newParent) {
-                console.log(`Значение parentKeyForForm для пользователя с ID ${userID} уже установлено на "${newParent}". Обновление не требуется.`);
-                return user.parentKeyForForm; // Возвращаем текущего пользователя без изменений
+            // Проверяем, присутствует ли новый parent в массиве
+            const index = user.parentKeyForForm.indexOf(newParent);
+            if (index !== -1) {
+                // Если новый parent уже присутствует в массиве, перемещаем его в начало
+                user.parentKeyForForm.splice(index, 1); // Удаляем элемент
+                user.parentKeyForForm.unshift(newParent); // Вставляем элемент в начало
+            } else {
+                // Добавляем новое значение в начало массива
+                user.parentKeyForForm.unshift(newParent);
             }
     
-            // Обновляем значение parentKeyForForm у пользователя
-            user.parentKeyForForm = newParent;
+            // Ограничиваем длину массива до 3 элементов
+            if (user.parentKeyForForm.length > 3) {
+                user.parentKeyForForm.pop(); // Удаляем последний (самый старый) элемент
+            }
     
             // Сохраняем обновленного пользователя в базе данных
             await user.save();
     
-            console.log(`Значение parentKeyForForm для пользователя с ID ${userID} успешно обновлено на "${newParent}".`);
-            return user.parentKeyForForm; // Возвращаем обновленного пользователя, если это необходимо
+            console.log(`Значение parentKeyForForm для пользователя с ID ${userID} успешно обновлено. Текущие значения: ${user.parentKeyForForm}`);
+            return user.parentKeyForForm; // Возвращаем обновленный массив
         } catch (error) {
             console.error(`Ошибка при обновлении parentKeyForForm для пользователя с ID ${userID}:`, error.message);
             throw error; // Пробрасываем ошибку дальше, чтобы ее можно было обработать

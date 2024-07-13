@@ -3,7 +3,7 @@ const {Schema, model} = require('mongoose');
 
 
 const BugSchema = new Schema({
-  domainId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  project: { type: String, required: true },
   pageId: { type: mongoose.Schema.Types.ObjectId, required: true },
   xpath: { type: String},
   heightRatio: { type: Number},
@@ -16,7 +16,9 @@ const BugSchema = new Schema({
   finalOsVersion: {type: String},
   browser: {type: String},
   pageResolution: {type: String},
-  status: {type: String}
+  status: {type: String},
+  createdAt: {type: String},
+  author: {type: String}
 });
 
 module.exports = model('Bug', BugSchema)

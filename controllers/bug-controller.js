@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const uuid = require('uuid');
 const userService = require('../service/user-service')
+const urlHelper = require("../helpers/urlHelper")
 
 const ApiError = require('../exceptions/api-error')
 
@@ -19,8 +20,9 @@ class BugController {
       console.log("Данные пользователя 0"+ JSON.stringify(req.user, null, 2));
       console.log("ЭТО В СЕРВИСЕ "+ actualScreenshot+"ОЖИДАЕМЫЙ "+expectedScreenshot );
       const bugsData = await bugService.createBug(url, xpath, heightRatio, widthRatio, summary, description, actualResult, expectedResult, priority, tags, OsVersion, environment, pageResolution, actualScreenshot, expectedScreenshot, userID, parentKeyForForm);
-      
-      const newparentKeyForForm = await userService.updateparentKeyForForm(userID, parentKeyForForm)
+     
+      const parentKey = await urlHelper.extractParent(parentKeyForForm)
+      const newparentKeyForForm = await userService.updateparentKeyForForm(userID, parentKey)
       console.log("Данные пользователя 1"+ JSON.stringify(req.user.parentKeyForForm));
         res.json({ bugs: bugsData, parentKeyForForm: newparentKeyForForm });
     } catch (error) {
@@ -101,8 +103,8 @@ class BugController {
   async getBugList(req, res, next) {
     try {
       const userID = req.user.id
-      const { parentKey } = req.query;
-      const bugsListData = await bugStatusUpdate.getUpdatedFullBugsFromTask(parentKey, userID);
+      const { parentKey, url } = req.query;
+      const bugsListData = await bugStatusUpdate.getUpdatedFullBugsFromTask(parentKey, userID, url);
       if (bugsListData === null) {
         res.status(404).json({ error: 'Список багов не найден' });
       } 

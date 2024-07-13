@@ -1,7 +1,7 @@
 module.exports = class BugDTO {
     constructor({
       domainId,
-      pageId,
+      path,
       xpath,
       heightRatio,
       widthRatio,
@@ -12,10 +12,13 @@ module.exports = class BugDTO {
       finalOsVersion,
       browser,
       pageResolution,
-      bugNumber
+      bugNumber, 
+      existsOnPage,
+      createdAt,
+      author
     }) {
       this.domainId = domainId,
-      this.pageId = pageId,
+      this.path = path,
       this.xpath = xpath;
       this.heightRatio = heightRatio;
       this.widthRatio = widthRatio;
@@ -27,6 +30,9 @@ module.exports = class BugDTO {
       this.browser = browser;
       this.pageResolution = pageResolution;
       this.bugNumber = bugNumber;
+      this.existsOnPage = existsOnPage,
+      this.createdAt = createdAt,
+      this.author = author
 
 
 

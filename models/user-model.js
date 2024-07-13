@@ -4,7 +4,7 @@ const UserSchema = new Schema({
     email: {type: String, unique:true, require:true},
     password: {type: String, require: true},
     trackerID:{type: String},
-    parentKeyForForm:{type: String},
+    parentKeyForForm: { type: [String], default: [] },
     isActivated:{ type:Boolean, default: false},
     activationLink:{type: String}
 })
